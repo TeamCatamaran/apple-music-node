@@ -50,6 +50,29 @@ export class ResourceClient<T extends ResponseRoot> {
     }
   }
 
+  async query(query: any, options?: { storefront?: string, languageTag?: string }): Promise<T> {
+    const storefront = options?.storefront || this.configuration.defaultStorefront;
+
+    if (!storefront) {
+      throw new Error(`Specify storefront with function parameter or default one with Client's constructor`);
+    }
+
+    const url = `/catalog/${storefront}/${this.urlName}`;
+
+    query.l = options?.languageTag || this.configuration.defaultLanguageTag;
+
+    const httpResponse = await this.request('GET', url, query);
+    const apiResponse = httpResponse.data as ResponseRoot;
+
+    // https://developer.apple.com/documentation/applemusicapi/handling_requests_and_responses#3001632
+    if (!apiResponse.errors) {
+      return apiResponse as T;
+    } else {
+      const error = apiResponse.errors[0] as Error;
+      throw new AppleMusicError(error.title, apiResponse, httpResponse.status);
+    }
+  }
+
   private request(method: Method, apiPath: string, params?: any): AxiosPromise {
     return this.axiosInstance.request({
       method: method,
